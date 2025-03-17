@@ -62,12 +62,13 @@ pub struct MettaMod {
     own_tokenizer: Shared<Tokenizer>,
     imported_deps: Mutex<HashMap<ModId, DynSpace>>,
     loader: Option<Box<dyn ModuleLoader>>,
+    inner_name:String,
 }
 
 impl MettaMod {
 
     /// Internal method to initialize an empty MettaMod
-    pub(crate) fn new_with_tokenizer(metta: &Metta, mod_path: String, space: DynSpace, tokenizer: Shared<Tokenizer>, resource_dir: Option<PathBuf>, no_stdlib: bool) -> Self {
+    pub(crate) fn new_with_tokenizer(metta: &Metta, mod_path: String, space: DynSpace, tokenizer: Shared<Tokenizer>, resource_dir: Option<PathBuf>, no_stdlib: bool, is_corelib:bool) -> Self {
 
         //Give the space a name based on the module, if it doesn't already have one
         if let Some(any_space) = space.borrow_mut().as_any_mut() {
@@ -79,7 +80,9 @@ impl MettaMod {
         }
         let space = Rc::new(RefCell::new(ModuleSpace::new(space)));
         let own_tokenizer  = Shared::new(Tokenizer::new());
-
+        let model_path = mod_path.clone();
+        let inner_name =   if is_corelib  {"corelib"} else {mod_name_from_path(&model_path)};
+       
         let new_mod = Self {
             mod_path,
             space,
@@ -88,12 +91,13 @@ impl MettaMod {
             imported_deps: Mutex::new(HashMap::new()),
             resource_dir,
             loader: None,
+            inner_name: inner_name.to_string(),
         };
               
         //Load the stdlib unless this module is no_std
         if !no_stdlib {
             if let Some(corelib_mod_id) = metta.0.corelib_mod.get() {
-                if new_mod.name() != "stdlib" {
+                if is_corelib {
                     new_mod.import_all_from_dependency(*corelib_mod_id, metta.get_mod_ptr(*corelib_mod_id), metta).unwrap();
                 }
             }
@@ -217,7 +221,7 @@ impl MettaMod {
         // println!("export_all_tokens_into to {:?}", target_mod.name());
         // print!("self tokens count:");
         //target_mod.tokenizer().borrow().print_tokens_count();
-        if self.name() == "corelib" {
+        if self.inner_name == "corelib" {
             register_all_corelib_tokens(&mut *target_mod.tokenizer().borrow_mut(), target_mod.tokenizer().clone(), &DynSpace::with_rc(target_mod.space.clone()), metta);
           
         } else {
@@ -545,10 +549,10 @@ impl ModuleInitFrame {
             None => self.the_mod.as_ref().unwrap().path()
         }
     }
-    pub fn init_self_module(&mut self, self_mod_id: ModId, metta: &Metta, space: DynSpace, resource_dir: Option<PathBuf>) -> Rc<MettaMod> {
+    pub fn init_self_module(&mut self, self_mod_id: ModId, metta: &Metta, space: DynSpace, resource_dir: Option<PathBuf>, is_corelib:bool) -> Rc<MettaMod> {
         let tokenizer = Shared::new(Tokenizer::new());
         let mod_name = self.new_mod_name.clone().unwrap();
-        let new_mod = Rc::new(MettaMod::new_with_tokenizer(metta, mod_name, space, tokenizer, resource_dir, false));
+        let new_mod = Rc::new(MettaMod::new_with_tokenizer(metta, mod_name, space, tokenizer, resource_dir, false, is_corelib));
         self.sub_module_names.update("top", self_mod_id).unwrap();
         new_mod
     }
@@ -683,7 +687,7 @@ mod test {
     impl ModuleLoader for OuterLoader {
         fn load(&self, context: &mut RunContext) -> Result<(), String> {
             let space = DynSpace::new(GroundingSpace::new());
-            context.init_self_module(space, None);
+            context.init_self_module(space, None,false);
 
             let parser = SExprParser::new("outer-module-test-atom");
             context.push_parser(Box::new(parser));
@@ -698,7 +702,7 @@ mod test {
     impl ModuleLoader for InnerLoader {
         fn load(&self, context: &mut RunContext) -> Result<(), String> {
             let space = DynSpace::new(GroundingSpace::new());
-            context.init_self_module(space, None);
+            context.init_self_module(space, None,false);
 
             let parser = SExprParser::new("inner-module-test-atom");
             context.push_parser(Box::new(parser));
@@ -744,7 +748,7 @@ mod test {
     impl ModuleLoader for RelativeOuterLoader {
         fn load(&self, context: &mut RunContext) -> Result<(), String> {
             let space = DynSpace::new(GroundingSpace::new());
-            context.init_self_module(space, None);
+            context.init_self_module(space, None,false);
 
             let _inner_mod_id = context.load_module_direct(Box::new(InnerLoader), "self:inner").unwrap();
 

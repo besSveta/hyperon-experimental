@@ -1985,7 +1985,7 @@ pub extern "C" fn run_context_init_self_module(run_context: *mut run_context_t,
         Some(PathBuf::from(cstr_as_str(resource_dir_path)))
     };
 
-    context.init_self_module(dyn_space.clone(), path);
+    context.init_self_module(dyn_space.clone(), path,false);
 }
 
 /// @brief Resolves a module name in the context of a running module, and loads that module

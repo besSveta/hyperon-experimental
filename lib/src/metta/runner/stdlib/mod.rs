@@ -133,7 +133,7 @@ impl Default for CoreLibLoader {
 impl ModuleLoader for CoreLibLoader {
     fn load(&self, context: &mut RunContext) -> Result<(), String> {
         let space = DynSpace::new(GroundingSpace::new());
-        context.init_self_module(space, None);
+        context.init_self_module(space, None, true);
 
         let module = context.module();
         let tokenizer = module.tokenizer();

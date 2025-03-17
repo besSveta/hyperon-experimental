@@ -167,7 +167,7 @@ impl Metta {
         let metta = Metta::new_core(space, env_builder);
 
         //Load the "corelib" module into the runner
-        let corelib_mod_id = metta.load_module_direct(Box::new(CoreLibLoader), "corelib").expect("Failed to load corelib");
+        let corelib_mod_id = metta.load_module_direct(Box::new(CoreLibLoader), "stdlib").expect("Failed to load corelib");
         metta.0.corelib_mod.set(corelib_mod_id).unwrap();
 
         //Load the stdlib if we have one, and otherwise make an alias to corelib
@@ -244,7 +244,7 @@ impl Metta {
         };
         let metta = Self(Rc::new(contents));
 
-        let top_mod = MettaMod::new_with_tokenizer(&metta, TOP_MOD_NAME.to_string(), space, top_mod_tokenizer, top_mod_resource_dir, false);
+        let top_mod = MettaMod::new_with_tokenizer(&metta, TOP_MOD_NAME.to_string(), space, top_mod_tokenizer, top_mod_resource_dir, false, false);
         assert_eq!(metta.add_module(top_mod).unwrap(), ModId::TOP);
 
         metta
@@ -834,12 +834,12 @@ impl<'input> RunContext<'_, 'input> {
     ///
     /// Prior to calling this function, any attempt to access the active module in the RunContext will
     /// lead to a panic.
-    pub fn init_self_module(&mut self, space: DynSpace, resource_dir: Option<PathBuf>) {
+    pub fn init_self_module(&mut self, space: DynSpace, resource_dir: Option<PathBuf>, is_corelib:bool) {
         if self.mod_ptr.is_some() {
             panic!("Module already initialized")
         }
         *self.mod_ptr = Some(self.init_state.in_frame(self.mod_id, |frame| {
-            frame.init_self_module(self.mod_id, &self.metta, space, resource_dir)
+            frame.init_self_module(self.mod_id, &self.metta, space, resource_dir, is_corelib)
         }));
     }
 

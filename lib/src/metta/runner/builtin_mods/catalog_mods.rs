@@ -55,7 +55,7 @@ pub(crate) struct CatalogModLoader;
 impl ModuleLoader for CatalogModLoader {
     fn load(&self, context: &mut RunContext) -> Result<(), String> {
         let space = DynSpace::new(GroundingSpace::new());
-        context.init_self_module(space, None);
+        context.init_self_module(space, None,false);
 
         let metta = context.metta();
         let mut tref = context.module().tokenizer().borrow_mut();
